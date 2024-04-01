@@ -175,8 +175,11 @@ for (i in 1:nrow(indexTiles)) {
     legend("bottomright", c("1", "2", "3"), inset = c(0.13, -0.17), bg = NULL, box.lty = 0, title = "Plot Priority", col = ptcol, pch = 16, xpd = T, horiz = T)
     sbar(2000, xy = c(me$xmin[[1]] + 2800, me$ymin[[1]] - 1200), divs = 4, ticks = T, type = "bar", below = "meters", cex = 0.8)
     #north(xy = c(680500, 6260500), type = 1, d = 2000)
-    text(me$xmin[[1]] + 50, me$ymin[[1]] - 800, "Wrangell Island", pos = 4, xpd = T, cex = 1., font = 2)
-    text(me$xmin[[1]] + 50, me$ymin[[1]] - 1100, "Lidar Plots", pos = 4, xpd = T, cex = 1., font = 2)
+    text(me$xmin[[1]] + 50, me$ymin[[1]] - 775, "Wrangell Island", pos = 4, xpd = T, cex = 1., font = 2)
+    text(me$xmin[[1]] + 50, me$ymin[[1]] - 1075, "Lidar Plots", pos = 4, xpd = T, cex = 1., font = 2)
+    text(me$xmin[[1]] + 50, me$ymin[[1]] - 1375, paste0("Index page: ", indexTiles$seq[i]), pos = 4, xpd = T, cex = 0.9, font = 2)
+    #text(me$xmin[[1]] + 50, me$ymin[[1]] - 800, "Wrangell Island", pos = 4, xpd = T, cex = 1., font = 2)
+    #text(me$xmin[[1]] + 50, me$ymin[[1]] - 1100, "Lidar Plots", pos = 4, xpd = T, cex = 1., font = 2)
 
     # sort list by priority and id
     iplotList <- iplotList[order(iplotList$priority, iplotList$id), ]
@@ -225,7 +228,7 @@ for (i in 1:nrow(indexTiles)) {
           #text(bx, by, "Wrangell Island Lidar Modeling Project", pos = 1, xpd = NA)
 
           by <- ext(plotsBuf[j])$ymin[[1]] - 15
-          text(bx, by, paste0("Plot: ", iplotList$id[j], "   Priority: ", iplotList$priority[j]), pos = 1, xpd = T, font = 2)
+          text(bx, by, paste0("Index page: ", indexTiles$seq[i], "   Plot: ", iplotList$id[j], "   Priority: ", iplotList$priority[j]), pos = 1, xpd = T, font = 2)
           by <- by - 10
           text(bx, by, paste0("   NAD83 UTM 8N (EPSG: 26908): (", round(iplotList$X[j], 0), ", ", round(iplotList$Y[j], 0), ")"), pos = 1, xpd = T, font = 2)
         }
