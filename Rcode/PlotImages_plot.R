@@ -23,6 +23,20 @@
 # functions that still require simple features objects. For these, I converted
 # things on the fly.
 #
+# 6/18/2024 Tried to produce georeferenced outputs by creating a TIF image and then
+# converting to PDG using gdal_translate. While the process worked, the coordinates
+# were off. It looks like the computed extent for the basemap was being applied to the
+# entire image including the white border. Switching from PDF to TIFF output also
+# requires messing with font, symbol and line sizes. The trick here is that PDF default
+# resolution is 72 dpi so you can calculate size needed for TIF outputs using the TIF
+# resolution. For example, if TIF dpi is 600, multiplier for all sizes is 600/72 = 8.33.
+#
+# you can reduce the margins to 0 but iso scaling will still add a border unless the
+# aspect ratio of the background extent matches that of the image (page size). You can
+# also adjust the page size to account for iso scaling. This produces a TIF image that
+# coverts to a PDF with the correct spatial referencing. Unfortunately this also drops
+# all of the axes so no axis labels or grid.
+#
 library(terra)
 #library(OpenStreetMap)
 #library(tidyterra)
@@ -93,29 +107,71 @@ Base_basemaps <-  basemaps::basemap_terra(ext=sf::st_bbox(as.vector(eindexTilesw
 #Base_basemaps <-  basemaps::basemap_terra(ext=sf::st_as_sf(project(indexTiles, crs("EPSG:3857"))), verbose=FALSE)
 Base_basemaps <- project(Base_basemaps, localcrs)
 
-pdf(file = paste0(folder, "MapBook.pdf"))
+ext <- ext(Base_basemaps)
+eWidth <- ext[2] - ext[1]
+eHeight <- ext[4] - ext[3]
 
-# overview plot...tried to add road labels but there are no control options in terra for labeling along
-# linear features so the result is very messy and useless.
-plotRGB(Base_basemaps, ext = ext(Base_basemaps), axes = T, grid = T, mar = c(2, 2, 2, 2), pax = list(side=c(1:4), col = "gray"))
-polys(indexTiles, col = "gray", alpha = 0.4)
-polys(access, col = "cyan", border = "darkgray", alpha = 0.2)
-lines(roads, col = "black", lwd = 2)
-#polys(plotsFootprint, col = "gray", alpha = 0.4)
-points(pts, col = pts$color)
-text(indexTiles, indexTiles$seq, col = "yellow", pos = 3, cex = 2.0, offset = c(-0.5, -0), halo = T, hc = "black")
+imageType <- "PDF"
 
-# title block and legend
-rect(xleft = 670000, xright = 687800, ybottom = 6255000, ytop = 6263000, col = "white", border = "black")
-rect(xleft = 682000, xright = 687800, ybottom = 6255000, ytop = 6263000, col = "white", border = "black")
-legend("topright", c("1 (100 plots)", "2 (14 plots)", "3 (14 plots)"), inset = c(0.12, 0.05), bg = NULL, box.lty = 0, horiz = F, title = "Plot Priority", col = ptcol, pch = 16, cex = 0.8)
-sbar(10000, xy = c(670700, 6255800), divs = 4, ticks = T, type = "bar", below = "meters", cex = 0.8)
-#north(xy = c(680500, 6260500), type = 1, d = 2000)
-text(676000, 6260000, "Wrangell Island", pos = 3, xpd = T, cex = 1.2, font = 2)
-text(676000, 6258500, "Lidar Plots", pos = 3, xpd = T, cex = 1.2, font = 2)
-text(675900, 6257000, "Coordinates in NAD83 UTM 8N", pos = 3, xpd = T, cex = 0.8)
+if (imageType == "PDF") {
+  pdf(file = paste0(folder, "MapBook.pdf"))
+  A#tiff(file = paste0(folder, "MapBook.tif"), width = 4200, height = 4200)
 
-dev.off()
+  # overview plot...tried to add road labels but there are no control options in terra for labeling along
+  # linear features so the result is very messy and useless.
+  plotRGB(Base_basemaps, ext = ext(Base_basemaps), axes = T, grid = T, mar = c(2, 2, 2, 2), pax = list(side=c(1:4), col = "gray"))
+  polys(indexTiles, col = "gray", alpha = 0.4)
+  polys(access, col = "cyan", border = "darkgray", alpha = 0.2)
+  lines(roads, col = "black", lwd = 2)
+  #polys(plotsFootprint, col = "gray", alpha = 0.4)
+  points(pts, col = pts$color)
+  text(indexTiles, indexTiles$seq, col = "yellow", pos = 3, cex = 2.0, offset = c(-0.5, -0), halo = T, hc = "black")
+
+  # title block and legend
+  rect(xleft = 670000, xright = 687800, ybottom = 6255000, ytop = 6263000, col = "white", border = "black")
+  rect(xleft = 682000, xright = 687800, ybottom = 6255000, ytop = 6263000, col = "white", border = "black")
+  legend("topright", c("1 (100 plots)", "2 (14 plots)", "3 (14 plots)"), inset = c(0.12, 0.05), bg = NULL, box.lty = 0, horiz = F, title = "Plot Priority", col = ptcol, pch = 16, cex = 0.8)
+  sbar(10000, xy = c(670700, 6255800), divs = 4, ticks = T, type = "bar", below = "meters", cex = 0.8)
+  #north(xy = c(680500, 6260500), type = 1, d = 2000)
+  text(676000, 6260000, "Wrangell Island", pos = 3, xpd = T, cex = 1.2, font = 2)
+  text(676000, 6258500, "Lidar Plots", pos = 3, xpd = T, cex = 1.2, font = 2)
+  text(675900, 6257000, "Coordinates in NAD83 UTM 8N", pos = 3, xpd = T, cex = 0.8)
+
+  dev.off()
+} else {
+  if (eHeight > eWidth) {
+    tiff(file = paste0(folder, "MapBook.tif"), width = 4200, height = 4200 * (eHeight / eWidth))
+  } else {
+    tiff(file = paste0(folder, "MapBook.tif"), width = 4200 * (eWidth / eHeight), height = 4200)
+  }
+
+  # overview plot...tried to add road labels but there are no control options in terra for labeling along
+  # linear features so the result is very messy and basically useless.
+  t <- plotRGB(Base_basemaps, ext = ext(Base_basemaps), axes = T, grid = T,
+               mar = c(0, 0, 0, 0), pax = list(side=c(1:4), col = "gray",
+#               mar = c(2, 2, 2, 2), pax = list(side=c(1:4), col = "gray",
+                                               col.ticks = "black",
+                                               cex.axis = 6.667, cex.lab = 5)
+               )
+  polys(indexTiles, col = "gray", alpha = 0.4)
+  polys(access, col = "cyan", border = "darkgray", alpha = 0.2)
+  lines(roads, col = "black", lwd = 16.667)
+  #polys(plotsFootprint, col = "gray", alpha = 0.4)
+  points(pts, col = pts$color, cex = 6.667)
+  text(indexTiles, indexTiles$seq, col = "yellow", pos = 3, cex = 16.667, offset = c(-6, -0), halo = T, hc = "black", hw = 1.6)
+
+  # title block and legend
+  rect(xleft = 670000, xright = 687800, ybottom = 6255000, ytop = 6263000, col = "white", border = "black", lwd = 16)
+  rect(xleft = 682000, xright = 687800, ybottom = 6255000, ytop = 6263000, col = "white", border = "black", lwd = 16)
+  legend("topright", c("1 (100 plots)", "2 (14 plots)", "3 (14 plots)"), inset = c(0.05, 0.05), bg = NULL, box.lty = 0, horiz = F, title = "Plot Priority", col = ptcol, pch = 16, cex = 6.667)
+  sbar(10000, xy = c(670700, 6255800), divs = 4, ticks = T, type = "bar", below = "meters", cex = 6.667)
+  #north(xy = c(680500, 6260500), type = 1, d = 2000)
+  text(676000, 6260000, "Wrangell Island", pos = 3, xpd = T, cex = 10, font = 2)
+  text(676000, 6258500, "Lidar Plots", pos = 3, xpd = T, cex = 10, font = 2)
+  text(675900, 6257000, "Coordinates in NAD83 UTM 8N", pos = 3, xpd = T, cex = 6.667)
+
+  dev.off()
+}
 
 # Individual quads with plots ---------------------------------------------
 # intersect plots with indexTiles
@@ -277,3 +333,11 @@ if (F) {
   st_write(t, paste0(folder, "grid50.shp"), append = F)
 }
 
+
+# testing addition of georeferencing info to TIF to produce PDF...works but TIF images are as nice as the original PDFs
+# the TIF images can't have any white space around the map area so no axis labels
+if (F) {
+  ext = ext(Base_basemaps)
+  cmd <- paste0(shQuote("C:/Program Files/GDAL/gdal_translate"), " ", folder, "MapBook.tif ", folder, "MapBook_test.pdf -of PDF -a_ullr ", ext[1], " ", ext[4], " ", ext[2], " ", ext[3], " -a_srs EPSG:26908 ")
+  system(cmd)
+}
